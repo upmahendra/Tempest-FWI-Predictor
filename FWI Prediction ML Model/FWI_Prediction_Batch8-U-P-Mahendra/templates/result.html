@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FWI Result</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="bg-gradient"></div>
+
+  <main class="center-wrap">
+    <div class="card result-card glass">
+      <div class="result-head">
+        <div class="flame-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 2C12 2 8.5 6 8.5 9.5C8.5 13 11 15.5 11 15.5C11 15.5 13.5 13 15 10.5C16 8.8 15.2 6 12 2Z" fill="#FF9A00"/>
+            <path d="M12 22C16 18 19 15 20 11.5C20.6 9.7 21 8 20 6C18.5 3.2 15 2 12 2C12 2 14 8 10 12C7 15 6 18.5 7 21.5C7.3 22.3 10 24 12 22Z" fill="#FF3D00" opacity="0.95"/>
+          </svg>
+        </div>
+        <h2>Fire Weather Index Result</h2>
+      </div>
+
+      <div class="gauge-row">
+        <svg class="gauge" viewBox="0 0 120 120" width="220" height="220" aria-hidden>
+          <defs>
+            <linearGradient id="gA" x1="0%" x2="100%">
+              <stop offset="0%" stop-color="#00c6ff" />
+              <stop offset="50%" stop-color="#ffb100" />
+              <stop offset="100%" stop-color="#ff2e2e" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          <circle cx="60" cy="60" r="48" stroke="#222" stroke-width="10" fill="#07070755"/>
+          <circle id="arc" cx="60" cy="60" r="48" stroke="url(#gA)" stroke-width="10" fill="none"
+                  stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="0 310" filter="url(#glow)"/>
+          <text id="g-value" x="60" y="68" text-anchor="middle" font-size="22" fill="{{ color }}">{{ fwi }}</text>
+        </svg>
+
+        <div class="risk-block">
+          <div class="risk-label" style="color: {{ color }};">{{ risk }}</div>
+          <div class="risk-desc">Interpreted risk level for the provided weather</div>
+          <canvas id="miniChart" width="260" height="140"></canvas>
+          <a class="btn secondary" href="/">🔁 Predict Again</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="fire-visual result-fire">
+      <canvas id="fire-canvas-result"></canvas>
+    </div>
+  </main>
+
+  <script>
+    // animate SVG arc based on fwi value (0-30 expected)
+    (function(){
+      const fwi = parseFloat({{ fwi|default(0) }});
+      const max = 30;
+      const ratio = Math.max(0, Math.min(1, fwi / max));
+      const arc = document.getElementById('arc');
+      const circumference = 2 * Math.PI * 48;
+      const dash = circumference * ratio;
+      arc.setAttribute('stroke-dasharray', `${dash} ${circumference - dash}`);
+
+      // animate the number growing
+      const txt = document.getElementById('g-value');
+      let cur = 0;
+      const target = Math.round(fwi*100)/100;
+      const step = Math.max(0.01, target / 30);
+      const anim = setInterval(()=> {
+        cur = Math.min(target, cur + step);
+        txt.textContent = (Math.round(cur*100)/100).toFixed(2);
+        if (cur >= target-1e-9) clearInterval(anim);
+      }, 12);
+    })();
+  </script>
+
+  <script>
+    // small Chart.js mini plot
+    const ctx = document.getElementById('miniChart');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels:['Safe','Alert','Warning','Danger'],
+        datasets:[{
+          label:'FWI',
+          data:[0,5,15, {{ fwi|default(0) }}],
+          borderColor: '{{ color }}',
+          backgroundColor:'rgba(0,0,0,0)',
+          tension:0.4,
+          pointRadius:4
+        }]
+      },
+      options: {
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true}}
+      }
+    });
+  </script>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
